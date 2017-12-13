@@ -60,7 +60,7 @@ def is_caught(range, cur_time):
         return (cur_time % ((range-1)*2)) == 0
 
 
-def traverse(firewall, delay=0):
+def traverse(firewall, delay=0, fail_early=False):
     caught_instances = []
     max_layer = max(firewall.keys()) + 1  # Layers start at 0
 
@@ -68,6 +68,8 @@ def traverse(firewall, delay=0):
         # If we get caught
         if i in firewall.keys() and is_caught(firewall[i], i+delay):
             caught_instances.append((i, firewall[i]))
+            if fail_early:
+                break
 
     return caught_instances
 
@@ -85,7 +87,7 @@ print("Total severity: %d" % severity)
 
 delay = 0
 while True:
-    caught_instances = traverse(LAYERS, delay)
+    caught_instances = traverse(LAYERS, delay, fail_early=True)
     if len(caught_instances) == 0:
         break
     else:
