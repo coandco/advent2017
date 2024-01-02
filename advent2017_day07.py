@@ -1,11 +1,11 @@
-from typing import Dict, Optional, List
+import re
+import time
+from typing import Dict, List, Optional
 
 from utils import read_data
-import time
-import re
 
-DIGITS = re.compile(r'\d+')
-NAMES = re.compile(r'[a-z]+')
+DIGITS = re.compile(r"\d+")
+NAMES = re.compile(r"[a-z]+")
 
 
 class Program:
@@ -72,7 +72,7 @@ def main():
     print(f"Part two: {tower.find_imbalance()}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     start = time.monotonic()
     main()
     print(f"Time: {time.monotonic()-start}")
