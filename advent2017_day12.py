@@ -1,34 +1,40 @@
 import re
 import time
 from collections import defaultdict
+from typing import Dict, Set
 
 from utils import read_data
 
 DIGITS = re.compile(r"\d+")
 
 
-def pipe_group(pipe_dict, start_pipe, group=None):
-    if group is None:
-        group = {start_pipe}
-    for pipe in pipe_dict[start_pipe]:
-        if pipe not in group:
-            group.add(pipe)
-            group = pipe_group(pipe_dict, pipe, group)
-    return group
+class Pipes:
+    pipes: Dict[int, Set[int]]
+
+    def __init__(self, raw_pipes: str):
+        self.pipes = defaultdict(set)
+        for line in raw_pipes.splitlines():
+            name, *connections = (int(x) for x in DIGITS.findall(line))
+            self.pipes[name] = set(connections)
+
+    def pipe_group(self, start_pipe, group=None):
+        if group is None:
+            group = {start_pipe}
+        for pipe in self.pipes[start_pipe]:
+            if pipe not in group:
+                group.add(pipe)
+                group = self.pipe_group(pipe, group)
+        return group
 
 
 def main():
-    pipe_dict = defaultdict(set)
-    for line in read_data().splitlines():
-        name, *connections = (int(x) for x in DIGITS.findall(line))
-        pipe_dict[name] = set(connections)
-    base_group = pipe_group(pipe_dict, 0)
+    pipes = Pipes(read_data())
+    base_group = pipes.pipe_group(0)
     print(f"Part one: {len(base_group)}")
-    leftover_pipes = set(pipe_dict.keys()) - base_group
+    leftover_pipes = set(pipes.pipes) - base_group
     num_groups = 1
-    while len(leftover_pipes) > 0:
-        next_group = pipe_group(pipe_dict, next(iter(leftover_pipes)))
-        leftover_pipes = leftover_pipes - next_group
+    while leftover_pipes:
+        leftover_pipes -= pipes.pipe_group(next(iter(leftover_pipes)))
         num_groups += 1
     print(f"Part two: {num_groups}")
 
