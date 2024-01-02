@@ -2,7 +2,7 @@ import operator
 import time
 from functools import reduce
 from itertools import zip_longest
-from typing import Any, Iterable, List
+from typing import Any, Iterable, List, Union
 
 from utils import read_data
 
@@ -27,6 +27,17 @@ def handle_instruction(queue_in: List[int], index: int, skip: int, length: int):
     return rotate(rotated, -index), index + length + skip, skip + 1
 
 
+def calc_hash(instructions: Union[str, List[int]], repetitions: int = 1) -> List[int]:
+    if isinstance(instructions, str):
+        instructions = [ord(x) for x in read_data()] + [17, 31, 73, 47, 23]
+    knot_hash = list(range(256))
+    index = skip = 0
+    for _ in range(repetitions):
+        for instruction in instructions:
+            knot_hash, index, skip = handle_instruction(knot_hash, index, skip, instruction)
+    return knot_hash
+
+
 def get_reduced_hash(knot_hash: List[int]):
     reduced_hash = []
     for chunk in grouper(knot_hash, 16):
@@ -36,18 +47,9 @@ def get_reduced_hash(knot_hash: List[int]):
 
 
 def main():
-    knot_hash = list(range(256))
-    index = skip = 0
-    for instruction in [int(x) for x in read_data().split(",")]:
-        knot_hash, index, skip = handle_instruction(knot_hash, index, skip, instruction)
+    knot_hash = calc_hash([int(x) for x in read_data().split(",")])
     print(f"Part one: {knot_hash[0] * knot_hash[1]}")
-
-    p2_input = [ord(x) for x in read_data()] + [17, 31, 73, 47, 23]
-    knot_hash = list(range(256))
-    index = skip = 0
-    for _ in range(64):
-        for instruction in p2_input:
-            knot_hash, index, skip = handle_instruction(knot_hash, index, skip, instruction)
+    knot_hash = calc_hash(read_data(), repetitions=64)
     reduced_hash = get_reduced_hash(knot_hash)
     print(f"Part two: {''.join(format(x, '02x') for x in reduced_hash)}")
 
