@@ -1,4 +1,6 @@
-INPUT = 312
+import time
+
+from utils import read_data
 
 
 class Link:
@@ -15,7 +17,7 @@ class CircularLinkedList:
         self.length = 1
 
     def advance(self, amount):
-        for _ in xrange(amount):
+        for _ in range(amount):
             self.cur_index = self.cur_index.next
 
     def insert_after(self, data):
@@ -43,26 +45,31 @@ class FauxCircularLinkedList:
         self.faux_index += 1
 
 
-def spin(linked_list, current_max, step):
+def spin(linked_list, current_max: int, step: int):
     linked_list.advance(step)
     new_max = current_max + 1
     linked_list.insert_after(new_max)
     return new_max
 
 
-spin_list = CircularLinkedList(0)
-spin_max = 0
-for i in xrange(2017):
-    spin_max = spin(spin_list, spin_max, INPUT)
-    #print("Spin %d resulted in array %r" % (i, [x for x in spin_list]))
+def main():
+    spin_list = CircularLinkedList(0)
+    spin_max = 0
+    steps = int(read_data())
+    for i in range(2017):
+        spin_max = spin(spin_list, spin_max, steps)
 
-print("Value immediately after last insert for v1: %d" % spin_list.cur_index.next.data)
+    print(f"Part one: {spin_list.cur_index.next.data}")
 
-spin_list = FauxCircularLinkedList()
-spin_max = 0
-for i in xrange(50000000):
-    spin_max = spin(spin_list, spin_max, INPUT)
-    if i % 500000 == 0:
-        print("Reached %d" % i)
+    spin_list = FauxCircularLinkedList()
+    spin_max = 0
+    for i in range(50000000):
+        spin_max = spin(spin_list, spin_max, steps)
 
-print("Value immediately after 0: %d" % spin_list.head.next.data)
+    print(f"Part two: {spin_list.head.next.data}")
+
+
+if __name__ == "__main__":
+    start = time.monotonic()
+    main()
+    print(f"Time: {time.monotonic()-start}")
