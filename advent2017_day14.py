@@ -1,72 +1,45 @@
-import itertools
-import operator
+import time
+from typing import Set
 
-import numpy as np
-from scipy.ndimage import label
-
-INPUT = "oundnydw"
-
-SALT = [17, 31, 73, 47, 23]
+from advent2017_day10 import calc_hash, get_reduced_hash
+from utils import BaseCoord as Coord
+from utils import read_data
 
 
-def rotate(to_rotate, amount):
-    actual_amount = amount % len(to_rotate)
-    return to_rotate[actual_amount:] + to_rotate[:actual_amount]
+def get_group(on_bits: Set[Coord], start: Coord) -> Set[Coord]:
+    group = {start}
+    queue = [start]
+    while queue:
+        curloc = queue.pop()
+        for neighbor in curloc.cardinal_neighbors():
+            if neighbor not in group and neighbor in on_bits:
+                group.add(neighbor)
+                queue.append(neighbor)
+    return group
 
 
-def reverse(to_reverse):
-    return to_reverse[::-1]
+def count_groups(on_bits: Set[Coord]):
+    remaining = on_bits.copy()
+    num_groups = 0
+    while remaining:
+        num_groups += 1
+        remaining -= get_group(remaining, next(iter(remaining)))
+    return num_groups
 
 
-def handle_instruction(queue_in, index, skip, length):
-    rotated = rotate(queue_in, index)
-    rotated[:length] = reverse(rotated[:length])
-    return rotate(rotated, -index), index+length+skip, skip+1
+def main():
+    on_bits = set()
+    key = read_data()
+    for y in range(128):
+        line_hash = get_reduced_hash(calc_hash(f"{key}-{y}", 64))
+        line_1s = [i for i, x in enumerate(f"{int(line_hash, 16):0128b}") if x == "1"]
+        on_bits |= {Coord(x=x, y=y) for x in line_1s}
+
+    print(f"Part one: {len(on_bits)}")
+    print(f"Part two: {count_groups(on_bits)}")
 
 
-def grouper(iterable, n, fillvalue=None):
-    args = [iter(iterable)] * n
-    return itertools.izip_longest(*args, fillvalue=fillvalue)
-
-
-def knot_hash(input, iterations, salt):
-    my_hash = list(range(256))
-    index = 0
-    skip = 0
-
-    salted_input = [ord(x) for x in input] + salt
-
-    for i in xrange(iterations):
-        for instruction in salted_input:
-            my_hash, index, skip = handle_instruction(my_hash, index, skip, int(instruction))
-
-    print("Knot hash v2 after permutation: %r" % my_hash)
-
-    reduced_hash = []
-
-    for chunk in grouper(my_hash, 16):
-        # print("Chunk is %r" % list(chunk))
-        xor_value = reduce(operator.xor, chunk, 0)
-        # print("XOR of chunk is %r" % xor_value)
-        reduced_hash.append(xor_value)
-    return reduced_hash
-
-
-total_bits = 0
-binary_grid = []
-for i in xrange(128):
-    line_hash = knot_hash("%s-%d" % (INPUT, i), 64, SALT)
-    binary_hash = [[int(y) for y in format(x, "08b")] for x in line_hash]
-    # Flatten list
-    binary_hash = list(itertools.chain.from_iterable(binary_hash))
-    binary_grid.append(binary_hash)
-    print("Hash for line %03d is %r" % (i, line_hash))
-    bits_in_line = len([x for x in binary_hash if x == 1])
-    print("Number of on bits in hash: %d" % bits_in_line)
-    total_bits += bits_in_line
-
-print("Total on bits for all lines: %d" % total_bits)
-
-numpy_bin_grid = np.array(binary_grid)
-_, count = label(numpy_bin_grid)
-print("Total groups: %d" % count)
+if __name__ == "__main__":
+    start = time.monotonic()
+    main()
+    print(f"Time: {time.monotonic()-start}")
