@@ -1,9 +1,8 @@
+import re
+import time
 from typing import Dict
 
 from utils import read_data
-import time
-import re
-
 
 COMPARISONS = {
     "<": lambda x, y: x < y,
@@ -11,11 +10,11 @@ COMPARISONS = {
     ">": lambda x, y: x > y,
     ">=": lambda x, y: x >= y,
     "==": lambda x, y: x == y,
-    "!=": lambda x, y: x != y
+    "!=": lambda x, y: x != y,
 }
-DIGITS = re.compile(r'[0-9-]+')
-WORDS = re.compile(r'[a-z]+')
-OPERATION = re.compile(r'[<>=!]+')
+DIGITS = re.compile(r"[0-9-]+")
+WORDS = re.compile(r"[a-z]+")
+OPERATION = re.compile(r"[<>=!]+")
 
 
 class Program:
@@ -30,7 +29,7 @@ class Program:
             cmpop, *_ = OPERATION.findall(line)
             self.process_instruction(register, operation, value, cmpreg, cmpop, cmpvalue)
 
-    def process_instruction(self, register, operation, value, cmpreg, cmpop, cmpvalue):
+    def process_instruction(self, register: str, operation: str, value: int, cmpreg: str, cmpop: str, cmpvalue: int):
         register_value = self.registers.get(register, 0)
         if operation == "dec":
             value *= -1
@@ -48,7 +47,7 @@ def main():
     print(f"Part two: {program.all_time_max}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     start = time.monotonic()
     main()
     print(f"Time: {time.monotonic()-start}")
