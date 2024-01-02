@@ -29,7 +29,7 @@ def handle_instruction(queue_in: List[int], index: int, skip: int, length: int):
 
 def calc_hash(instructions: Union[str, List[int]], repetitions: int = 1) -> List[int]:
     if isinstance(instructions, str):
-        instructions = [ord(x) for x in read_data()] + [17, 31, 73, 47, 23]
+        instructions = [ord(x) for x in instructions] + [17, 31, 73, 47, 23]
     knot_hash = list(range(256))
     index = skip = 0
     for _ in range(repetitions):
@@ -43,15 +43,14 @@ def get_reduced_hash(knot_hash: List[int]):
     for chunk in grouper(knot_hash, 16):
         xor_value = reduce(operator.xor, chunk, 0)
         reduced_hash.append(xor_value)
-    return reduced_hash
+    return ''.join(format(x, '02x') for x in reduced_hash)
 
 
 def main():
     knot_hash = calc_hash([int(x) for x in read_data().split(",")])
     print(f"Part one: {knot_hash[0] * knot_hash[1]}")
     knot_hash = calc_hash(read_data(), repetitions=64)
-    reduced_hash = get_reduced_hash(knot_hash)
-    print(f"Part two: {''.join(format(x, '02x') for x in reduced_hash)}")
+    print(f"Part two: {get_reduced_hash(knot_hash)}")
 
 
 if __name__ == "__main__":
