@@ -1,176 +1,64 @@
-import math
+import time
+from math import sqrt
 
-INPUT = """set b 99
-set c b
-jnz a 2
-jnz 1 5
-mul b 100
-sub b -100000
-set c b
-sub c -17000
-set f 1
-set d 2
-set e 2
-set g d
-mul g e
-sub g b
-jnz g 2
-set f 0
-sub e -1
-set g e
-sub g b
-jnz g -8
-sub d -1
-set g d
-sub g b
-jnz g -13
-jnz f 2
-sub h -1
-set g b
-sub g c
-jnz g 2
-jnz 1 3
-sub b -17
-jnz 1 -23"""
-
-DIGESTED_INPUT = [x.split() for x in INPUT.split("\n")]
+from advent2017_day18 import Assembly
+from utils import read_data
 
 
-def is_prime(n):
+class Coprocessor(Assembly):
+    num_mul: int = 0
+
+    def __init__(self, raw_program: str, debug: bool = False):
+        super().__init__(raw_program)
+        self.ops = {"set": self.do_set, "sub": self.do_sub, "mul": self.do_mul, "jnz": self.do_jnz}
+        self.registers = {x: 0 for x in "abcdefgh"}
+        if debug:
+            self.registers["a"] = 1
+
+    def do_jnz(self, reg: str, value: str):
+        reg = self.registers[reg] if reg in self.registers else int(reg)
+        value = self.registers[value] if value in self.registers else int(value)
+        self.program_counter += 1 if reg == 0 else value
+
+    def do_sub(self, reg: str, value: str):
+        value = self.registers[value] if value in self.registers else int(value)
+        self.registers[reg] -= value
+        self.program_counter += 1
+
+    def do_mul(self, reg: str, value: str):
+        value = self.registers[value] if value in self.registers else int(value)
+        self.registers[reg] *= value
+        self.num_mul += 1
+        self.program_counter += 1
+
+    def run(self) -> int:
+        while 0 <= self.program_counter < len(self.program):
+            op, *args = self.program[self.program_counter]
+            self.ops[op](*args)
+        return self.num_mul
+
+
+def is_prime(n: int) -> bool:
     if n % 2 == 0 and n > 2:
         return False
-    for i in range(3, int(math.sqrt(n)) + 1, 2):
+    for i in range(3, int(sqrt(n)) + 1, 2):
         if n % i == 0:
             return False
     return True
 
 
-def do_thing(initial_number, offset):
-    r = dict.fromkeys(list("abcdefgh"), 0)
-    r['b'] = initial_number
-    r['c'] = initial_number + offset
-    r['f'] = 0
-    while r['b'] != r['c']:
-        print("Register states at beginning of loop: %r" % r)
-        r['f'] = 1
-        r['d'] = 2
-        r['e'] = 2
-        while r['d'] != r['b']:
-            if (r['d'] * r['e']) == r['b']:
-                r['f'] = 0
-            r['e'] += 1
-            if r['e'] != r['b']:
-                continue
-            r['d'] += 1
-            r['e'] = 2
-        if r['f'] != 0:
-            r['h'] += 1
-        r['b'] += 17
-    return r['h']
+def main():
+    coprocessor = Coprocessor(read_data())
+    print(f"Part one: {coprocessor.run()}")
+    num_primes = 0
+    start = (int(coprocessor.program[0][2]) * 100) + 100000
+    for i in range(start, start + 17001, 17):
+        if not is_prime(i):
+            num_primes += 1
+    print(f"Part two: {num_primes}")
 
 
-#b = 8
-#output = do_thing(b, 51)
-#print("Number returned from [%d,%d,%d,%d]: %d" % (b, b+17, b+(17*2), b+(17*3), output))
-#exit()
-
-
-def number_or_register(register_dict, value):
-    try:
-        test = int(value)
-        return test
-    except ValueError:
-        return register_dict[value]
-
-
-def do_set(register_dict, instruction, program_counter):
-    register_to = instruction[1]
-    value_from = number_or_register(register_dict, instruction[2])
-    register_dict[register_to] = value_from
-    program_counter += 1
-    return program_counter
-
-
-def do_sub(register_dict, instruction, program_counter):
-    register_to = instruction[1]
-    value_from = number_or_register(register_dict, instruction[2])
-    register_dict[register_to] -= value_from
-    program_counter += 1
-    return program_counter
-
-
-def do_mul(register_dict, instruction, program_counter):
-    register_to = instruction[1]
-    value_from = number_or_register(register_dict, instruction[2])
-    register_dict[register_to] *= value_from
-    program_counter += 1
-    return program_counter
-
-
-def do_mod(register_dict, instruction, program_counter):
-    register_to = instruction[1]
-    value_from = number_or_register(register_dict, instruction[2])
-    register_dict[register_to] %= value_from
-    program_counter += 1
-    return program_counter
-
-
-def do_jgz(register_dict, instruction, program_counter, instance=0):
-    conditional = number_or_register(register_dict, instruction[1])
-    offset = number_or_register(register_dict, instruction[2])
-    if conditional > 0:
-        program_counter += offset
-    else:
-        program_counter += 1
-    return program_counter
-
-
-def do_jnz(register_dict, instruction, program_counter):
-    conditional = number_or_register(register_dict, instruction[1])
-    offset = number_or_register(register_dict, instruction[2])
-    if conditional != 0:
-        program_counter += offset
-    else:
-        program_counter += 1
-    return program_counter
-
-
-INSTRUCTION_MAP = {'set': do_set,
-                   'sub': do_sub,
-                   'mul': do_mul,
-                   'mod': do_mod,
-                   'jnz': do_jnz,
-                   'jgz': do_jgz}
-
-REGISTERS = dict.fromkeys(list("abcdefgh"), 0)
-program_counter = 0
-mul_counter = 0
-
-while True:
-    # If we're out of bounds, terminate
-    if program_counter < 0 or program_counter >= len(DIGESTED_INPUT):
-        print("Program went out of bounds at address %d" % program_counter)
-        break
-    current_instruction = DIGESTED_INPUT[program_counter]
-    if current_instruction[0] == "mul":
-        mul_counter += 1
-    #print("Executing line %d: %r" % (program_counter, current_instruction))
-    if program_counter == 9:
-        print("Breakpoint snapshot for %d %r: %r" % (program_counter, current_instruction, REGISTERS))
-    program_counter = INSTRUCTION_MAP[current_instruction[0]](REGISTERS, current_instruction, program_counter)
-    #print("Registers: %r" % REGISTERS)
-    #if program_counter == 12:
-    #    print("Breakpoint snapshot for %d %r: %r" % (program_counter, current_instruction, REGISTERS))
-
-print("Number of times mul is invoked: %d" % mul_counter)
-
-num_primes = 0
-total_checked = 0
-for i in xrange(109900, 109900+17001, 17):
-    print("i is %d" % i)
-    total_checked += 1
-    if not is_prime(i):
-        num_primes += 1
-
-print("Final value of h: %d" % num_primes)
-print("Total values checked: %d" % total_checked)
+if __name__ == "__main__":
+    start = time.monotonic()
+    main()
+    print(f"Time: {time.monotonic()-start}")
