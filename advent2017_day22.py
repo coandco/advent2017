@@ -1,86 +1,66 @@
-import collections
+import time
+from collections import defaultdict
+from typing import Dict
 
-INPUT = """.......##.#..####.#....##
-..###....###.####..##.##.
-#..####.#....#.#....##...
-.#....#.#.#....#######...
-.###..###.#########....##
-##...#####..#####.###.#..
-.#..##.###.#.#....######.
-.#.##.#..####..#.##.....#
-#.#..###..##..#......##.#
-##.###.##.#.#...##.#.##..
-##...#.######.#..##.#...#
-....#.####..#..###.##..##
-...#....#.###.#.#..#.....
-..###.#.#....#.....#.####
-.#....##..##.#.#...#.#.#.
-...##.#.####.###.##...#.#
-##.#.####.#######.##..##.
-.##...#......####..####.#
-#..###.#.###.##.#.#.##..#
-#..###.#.#.#.#.#....#.#.#
-####.#..##..#.#..#..#.###
-##.....#..#.#.#..#.####..
-#####.....###.........#..
-##...#...####..#####...##
-.....##.#....##...#.....#""".split("\n")
+from utils import BaseCoord as Coord
+from utils import read_data
+
+DIRECTIONS = {"N": Coord(x=0, y=-1), "E": Coord(x=1, y=0), "S": Coord(x=0, y=1), "W": Coord(x=-1, y=0)}
+RIGHT_TURN = {"N": "E", "E": "S", "S": "W", "W": "N"}
+LEFT_TURN = {"N": "W", "E": "N", "S": "E", "W": "S"}
 
 
-def process_burst(set_dict, direction, location, transform):
-    new_direction = list(direction)
-    cur_loc_status = set_dict[tuple(location)]
-    set_dict[tuple(location)] = transform[cur_loc_status]
-    if cur_loc_status == '.':
-        # Turn left
-        new_direction[0], new_direction[1] = -new_direction[1], new_direction[0]
-    elif cur_loc_status == 'W':
-        # No direction change
-        pass
-    elif cur_loc_status == '#':
-        # Turn right
-        new_direction[0], new_direction[1] = new_direction[1], -new_direction[0]
-    elif cur_loc_status == 'F':
-        # Reverse direction
-        new_direction[0], new_direction[1] = -new_direction[0], -new_direction[1]
-    else:
-        raise Exception("Unknown location status: %s" % cur_loc_status)
+class Cluster:
+    grid: Dict[Coord, str]
+    curloc: Coord
+    curdir: str
+    num_infected: int = 0
+    transforms: Dict[str, str]
 
-    infected_this_burst = (transform[cur_loc_status] == '#')
-    new_location = [sum(x) for x in zip(new_direction, location)]
-    return new_direction, new_location, infected_this_burst
+    def __init__(self, raw_grid: str, transforms: Dict[str, str]):
+        self.grid = defaultdict(lambda: ".")
+        lines = raw_grid.splitlines()
+        for y, line in enumerate(lines):
+            for x, char in enumerate(line):
+                if char == "#":
+                    self.grid[Coord(x=x, y=y)] = char
+        self.transforms = transforms
+        self.curloc = Coord(x=len(lines) // 2, y=len(lines) // 2)
+        self.curdir = "N"
+
+    def step(self):
+        status = self.grid[self.curloc]
+        self.grid[self.curloc] = self.transforms[status]
+
+        if status == ".":
+            self.curdir = LEFT_TURN[self.curdir]
+        elif status == "#":
+            self.curdir = RIGHT_TURN[self.curdir]
+        elif status == "F":
+            self.curdir = RIGHT_TURN[RIGHT_TURN[self.curdir]]
+        elif status == "W":
+            pass
+        else:
+            raise Exception(f"Unknown grid status {status}")
+
+        if self.grid[self.curloc] == "#":
+            self.num_infected += 1
+
+        self.curloc += DIRECTIONS[self.curdir]
 
 
-starting_dict = collections.defaultdict(lambda: '.')
-for i, line in enumerate(INPUT):
-    for j, char in enumerate(line):
-        if char == "#":
-            starting_dict[tuple([i - (len(line) // 2), j - (len(line) // 2)])] = '#'
+def main():
+    cluster = Cluster(read_data(), {"#": ".", ".": "#"})
+    for _ in range(10_000):
+        cluster.step()
+    print(f"Part one: {cluster.num_infected}")
+    cluster = Cluster(read_data(), {".": "W", "W": "#", "#": "F", "F": "."})
+    for _ in range(10_000_000):
+        cluster.step()
+    print(f"Part two: {cluster.num_infected}")
 
-set_dict = starting_dict.copy()
-cur_dir = [-1, 0]
-cur_loc = [0, 0]
-infection_count = 0
-V1_TRANSFORM = {'.': '#', '#': '.'}
 
-for i in xrange(10000):
-    cur_dir, cur_loc, new_infection = process_burst(set_dict, cur_dir, cur_loc, V1_TRANSFORM)
-    if new_infection:
-        infection_count += 1
-
-print("Final infection count for v1: %d" % infection_count)
-
-set_dict = starting_dict.copy()
-cur_dir = [-1, 0]
-cur_loc = [0, 0]
-infection_count = 0
-V2_TRANSFORM = {'.': 'W', 'W': '#', '#': 'F', 'F': '.'}
-
-for i in xrange(10000000):
-    cur_dir, cur_loc, new_infection = process_burst(set_dict, cur_dir, cur_loc, V2_TRANSFORM)
-    if new_infection:
-        infection_count += 1
-    if (i + 1) % 1000000 == 0:
-        print("Infection count is %d after %d bursts" % (infection_count, i + 1))
-
-print("Final infection count for v2: %d" % infection_count)
+if __name__ == "__main__":
+    start = time.monotonic()
+    main()
+    print(f"Time: {time.monotonic()-start}")
