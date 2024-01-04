@@ -1,40 +1,73 @@
-import collections
+import re
+import time
+from collections import defaultdict
+from typing import Dict, List, NamedTuple, Tuple
 
-INPUT = {'A': [(1,  1, 'B'), (0,  1, 'F')],
-         'B': [(0, -1, 'B'), (1, -1, 'C')],
-         'C': [(1, -1, 'D'), (0,  1, 'C')],
-         'D': [(1, -1, 'E'), (1,  1, 'A')],
-         'E': [(1, -1, 'F'), (0, -1, 'D')],
-         'F': [(1,  1, 'A'), (0, -1, 'E')]}
+from utils import read_data
 
-EXAMPLE = {'A': [(1,  1, 'B'), (0, -1, 'B')],
-           'B': [(1, -1, 'A'), (1,  1, 'A')]}
+DIGITS = re.compile(r"[0-9-]+")
 
 
-def advance_state(tape, location, state, rules):
-    current_value = tape[location]
-    tape[location] = rules[state][current_value][0]
-    return tape, location + rules[state][current_value][1], rules[state][current_value][2]
+class Substate(NamedTuple):
+    value: int
+    offset: int
+    next: str
+
+    @staticmethod
+    def from_str(raw_substate: List[str]) -> "Substate":
+        value = int(raw_substate[0][-2])
+        offset = 1 if raw_substate[1].rsplit(maxsplit=1)[1] == "right." else -1
+        next = raw_substate[2][-2]
+        return Substate(value, offset, next)
 
 
-tape = collections.defaultdict(lambda: 0)
-current_location = 0
-current_state = 'A'
+class State(NamedTuple):
+    name: str
+    substates: Tuple[Substate, Substate]
 
-for i in xrange(6):
-    tape, current_location, current_state = advance_state(tape, current_location, current_state, EXAMPLE)
-    print("Iter: %d, Loc: %d, State: %s, Tape: %r" % (i, current_location, current_state, tape))
+    @staticmethod
+    def from_str(raw_state: str) -> "State":
+        lines = raw_state.splitlines()
+        name = lines[0][-2]
+        substates = (Substate.from_str(lines[2:5]), Substate.from_str(lines[6:9]))
+        return State(name, substates)
 
-print("Example checksum: %d" % sum(tape.values()))
 
-tape = collections.defaultdict(lambda: 0)
-current_location = 0
-current_state = 'A'
+class TuringMachine:
+    start_state: str
+    cur_loc: int
+    diag_after: int
+    rules: Dict[str, State]
+    tape: Dict[int, int]
 
-for i in xrange(12425180):
-    tape, current_location, current_state = advance_state(tape, current_location, current_state, INPUT)
-    if i % 1e6 == 0:
-        print("Iter: %d, Loc: %d, State: %s" % (i, current_location, current_state))
+    def __init__(self, raw_instructions: str):
+        preamble, *raw_states = raw_instructions.split("\n\n")
+        lines = preamble.splitlines()
+        self.diag_after, *_ = (int(x) for x in DIGITS.findall(lines[1]))
+        self.rules = {(state := State.from_str(x)).name: state for x in raw_states}
+        self.start_state = lines[0][-2]
+        self.cur_loc = 0
+        self.tape = defaultdict(int)
 
-print("Final checksum: %d" % sum(tape.values()))
+    def run(self) -> int:
+        tape = defaultdict(int)
+        state = self.start_state
+        loc = 0
+        for i in range(self.diag_after):
+            current_rule = self.rules[state]
+            current_value = tape[loc]
+            tape[loc] = current_rule.substates[current_value].value
+            loc += current_rule.substates[current_value].offset
+            state = current_rule.substates[current_value].next
+        return sum(tape.values())
 
+
+def main():
+    machine = TuringMachine(read_data())
+    print(f"Part one: {machine.run()}")
+
+
+if __name__ == "__main__":
+    start = time.monotonic()
+    main()
+    print(f"Time: {time.monotonic()-start}")
